@@ -133,10 +133,12 @@ function step(dt) {
   }
   if (mode !== 'running' || !me.alive) return;
 
-  const speed = Math.min(420, 240 + me.d * 0.03);   // ramps up
+  const speed = 240 + me.d * 0.03;   // no cap — keeps accelerating forever
   me.d += speed * dt;
 
-  const lat = (keys['arrowright'] || keys['d'] ? 260 : 0) - (keys['arrowleft'] || keys['a'] ? 260 : 0);
+  // steering scales with speed so the winding path stays (barely) survivable
+  const latSpeed = Math.max(260, speed * 0.62);
+  const lat = (keys['arrowright'] || keys['d'] ? latSpeed : 0) - (keys['arrowleft'] || keys['a'] ? latSpeed : 0);
   me.x += lat * dt;
 
   if (me.z > 0 || me.vz > 0) {
