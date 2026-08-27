@@ -67,6 +67,7 @@ const me = { d: 0, x: 0, z: 0, vz: 0, alive: true };
 const rival = { d: 0, x: 0, z: 0, seen: false };
 let mode = 'connecting';   // connecting | waiting | countdown | running | over | peerLeft
 let countdownT = 0, endMsg = '', subMsg = '', iWantRematch = false, peerReady = false;
+let myIdx = 0, wins = [0, 0], best = [0, 0];
 const keys = {};
 
 // ---------- input ----------
@@ -95,6 +96,7 @@ ws.onmessage = ev => {
   const m = JSON.parse(ev.data);
   if (m.t === 'wait') mode = 'waiting';
   else if (m.t === 'start') {
+    myIdx = m.you; wins = m.wins; best = m.best;
     course = buildCourse(m.seed);
     Object.assign(me, { d: 0, x: 0, z: 0, vz: 0, alive: true });
     Object.assign(rival, { d: 0, x: 0, z: 0, seen: false });
@@ -104,6 +106,7 @@ ws.onmessage = ev => {
   else if (m.t === 'peer') { rival.d = m.d; rival.x = m.x; rival.z = m.z; rival.seen = true; }
   else if (m.t === 'end') {
     mode = 'over';
+    wins = m.wins; best = m.best;
     endMsg = m.win ? 'YOU WIN' : 'YOU LOSE';
     subMsg = (m.win ? 'rival ' : 'you ') + m.reason + ' at ' + m.dist + 'm — press R for rematch';
   }
@@ -233,9 +236,11 @@ function draw() {
 
     // HUD
     ctx.fillStyle = '#dfe6f0'; ctx.font = '14px ui-monospace, monospace'; ctx.textAlign = 'left';
-    ctx.fillText(`you ${me.d | 0}m`, 10, 22);
+    ctx.fillText(`you   ${me.d | 0}m · ${wins[myIdx]}W · best ${best[myIdx]}m`, 10, 22);
     ctx.fillStyle = '#5ab0ff';
-    ctx.fillText(rival.seen ? `rival ${rival.d | 0}m` : 'rival …', 10, 42);
+    ctx.fillText(rival.seen
+      ? `rival ${rival.d | 0}m · ${wins[1 - myIdx]}W · best ${best[1 - myIdx]}m`
+      : 'rival …', 10, 42);
   }
 
   // overlays
@@ -253,13 +258,17 @@ function draw() {
     ctx.fillText('A/D or ←/→ steer · SPACE jump rocks · dodge red walls', W / 2, H / 2 + 40);
   }
   else if (mode === 'over' || mode === 'peerLeft') {
-    ctx.fillStyle = 'rgba(6,8,13,0.75)'; ctx.fillRect(0, H / 2 - 70, W, 140);
+    ctx.fillStyle = 'rgba(6,8,13,0.75)'; ctx.fillRect(0, H / 2 - 92, W, 184);
     ctx.fillStyle = endMsg === 'YOU WIN' ? '#7cff6b' : '#e63946';
-    ctx.font = 'bold 44px monospace'; ctx.fillText(endMsg, W / 2, H / 2);
-    ctx.fillStyle = '#dfe6f0'; ctx.font = '13px monospace';
-    ctx.fillText(subMsg, W / 2, H / 2 + 28);
-    if (iWantRematch) { ctx.fillStyle = '#8d99ae'; ctx.fillText('waiting for rival…', W / 2, H / 2 + 48); }
-    else if (peerReady) { ctx.fillStyle = '#7cff6b'; ctx.fillText('rival wants a rematch!', W / 2, H / 2 + 48); }
+    ctx.font = 'bold 44px monospace'; ctx.fillText(endMsg, W / 2, H / 2 - 20);
+    ctx.fillStyle = '#dfe6f0'; ctx.font = 'bold 22px monospace';
+    ctx.fillText(`you ${wins[myIdx]} — ${wins[1 - myIdx]} rival`, W / 2, H / 2 + 12);
+    ctx.font = '13px monospace'; ctx.fillStyle = '#8d99ae';
+    ctx.fillText(`best: you ${best[myIdx]}m · rival ${best[1 - myIdx]}m`, W / 2, H / 2 + 34);
+    ctx.fillStyle = '#dfe6f0';
+    ctx.fillText(subMsg, W / 2, H / 2 + 56);
+    if (iWantRematch) { ctx.fillStyle = '#8d99ae'; ctx.fillText('waiting for rival…', W / 2, H / 2 + 76); }
+    else if (peerReady) { ctx.fillStyle = '#7cff6b'; ctx.fillText('rival wants a rematch!', W / 2, H / 2 + 76); }
   }
 }
 

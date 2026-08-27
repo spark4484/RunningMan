@@ -26,12 +26,15 @@ function send(ws, msg) {
 function startRound(room) {
   room.roundOver = false;
   room.again = [false, false];
+  room.lastD = [0, 0];
   const seed = (Math.random() * 0xffffffff) >>> 0;
-  room.players.forEach((p, i) => send(p, { t: 'start', seed, you: i }));
+  room.players.forEach((p, i) =>
+    send(p, { t: 'start', seed, you: i, wins: room.wins, best: room.best }));
 }
 
 function makeRoom(a, b) {
-  const room = { players: [a, b], roundOver: false, again: [false, false] };
+  const room = { players: [a, b], roundOver: false, again: [false, false],
+                 wins: [0, 0], best: [0, 0], lastD: [0, 0] };
   a.room = b.room = room;
   a.idx = 0; b.idx = 1;
   startRound(room);
@@ -44,12 +47,17 @@ wss.on('connection', (ws) => {
     const room = ws.room;
 
     if (msg.t === 'state' && room) {
+      room.lastD[ws.idx] = msg.d | 0;
       send(room.players[1 - ws.idx], { t: 'peer', d: msg.d, x: msg.x, z: msg.z });
     } else if (msg.t === 'dead' && room && !room.roundOver) {
       room.roundOver = true;
       const winner = 1 - ws.idx;
+      room.wins[winner]++;
+      room.best[ws.idx] = Math.max(room.best[ws.idx], msg.d | 0);
+      room.best[winner] = Math.max(room.best[winner], room.lastD[winner]);
       room.players.forEach((p, i) =>
-        send(p, { t: 'end', win: i === winner, reason: msg.reason, dist: msg.d | 0 }));
+        send(p, { t: 'end', win: i === winner, reason: msg.reason, dist: msg.d | 0,
+                  wins: room.wins, best: room.best }));
     } else if (msg.t === 'again' && room) {
       room.again[ws.idx] = true;
       if (room.again[0] && room.again[1]) startRound(room);
